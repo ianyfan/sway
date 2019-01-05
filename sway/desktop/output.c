@@ -143,6 +143,24 @@ void output_surface_for_each_surface(struct sway_output *output,
 		output_for_each_surface_iterator, &data);
 }
 
+void output_surface_for_each_layer_surface(struct sway_output *output,
+		struct wlr_layer_surface_v1 *surface, double ox, double oy,
+		sway_surface_iterator_func_t iterator, void *user_data) {
+	struct surface_iterator_data data = {
+		.user_iterator = iterator,
+		.user_data = user_data,
+		.output = output,
+		.ox = ox,
+		.oy = oy,
+		.width = surface->surface->current.width,
+		.height = surface->surface->current.height,
+		.rotation = 0,
+	};
+
+	wlr_layer_surface_v1_for_each_surface(surface,
+		output_for_each_surface_iterator, &data);
+}
+
 void output_view_for_each_surface(struct sway_output *output,
 		struct sway_view *view, sway_surface_iterator_func_t iterator,
 		void *user_data) {
@@ -188,7 +206,7 @@ void output_layer_for_each_surface(struct sway_output *output,
 	wl_list_for_each(layer_surface, layer_surfaces, link) {
 		struct wlr_layer_surface_v1 *wlr_layer_surface_v1 =
 			layer_surface->layer_surface;
-		output_surface_for_each_surface(output, wlr_layer_surface_v1->surface,
+		output_surface_for_each_layer_surface(output, wlr_layer_surface_v1,
 			layer_surface->geo.x, layer_surface->geo.y, iterator,
 			user_data);
 	}

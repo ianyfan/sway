@@ -348,6 +348,72 @@ static void handle_unmap(struct wl_listener *listener, void *data) {
 	unmap(sway_layer);
 }
 
+static void popup_handle_map(struct wl_listener *listener, void *data) {
+	struct sway_layer_popup *popup = wl_container_of(listener, popup, map);
+	struct sway_layer_surface *layer = popup->parent;
+	struct sway_output *output = layer->layer_surface->output->data;
+	int ox = popup->wlr_popup->geometry.x + layer->geo.x;
+	int oy = popup->wlr_popup->geometry.y + layer->geo.y;
+	output_damage_surface(output, ox, oy, popup->wlr_popup->base->surface, true);
+	// TODO update focus?
+}
+
+static void popup_handle_unmap(struct wl_listener *listener, void *data) {
+	struct sway_layer_popup *popup = wl_container_of(listener, popup, unmap);
+	struct sway_layer_surface *layer = popup->parent;
+	struct sway_output *output = layer->layer_surface->output->data;
+	int ox = popup->wlr_popup->geometry.x + layer->geo.x;
+	int oy = popup->wlr_popup->geometry.y + layer->geo.y;
+	output_damage_surface(output, ox, oy, popup->wlr_popup->base->surface, true);
+}
+
+static void popup_handle_commit(struct wl_listener *listener, void *data) {
+	struct sway_layer_popup *popup = wl_container_of(listener, popup, commit);
+	struct sway_layer_surface *layer = popup->parent;
+	struct sway_output *output = layer->layer_surface->output->data;
+	int ox = popup->wlr_popup->geometry.x + layer->geo.x;
+	int oy = popup->wlr_popup->geometry.y + layer->geo.y;
+	output_damage_surface(output, ox, oy, popup->wlr_popup->base->surface, true);
+}
+
+static void popup_handle_destroy(struct wl_listener *listener, void *data) {
+	struct sway_layer_popup *popup = wl_container_of(listener, popup, destroy);
+
+	wl_list_remove(&popup->map.link);
+	wl_list_remove(&popup->unmap.link);
+	wl_list_remove(&popup->destroy.link);
+	wl_list_remove(&popup->commit.link);
+	free(popup);
+}
+
+static struct sway_layer_popup *popup_create(struct sway_layer_surface *parent,
+		struct wlr_xdg_popup *wlr_popup) {
+	struct sway_layer_popup *popup = calloc(1, sizeof(struct sway_layer_popup));
+	if (!popup) {
+		return NULL;
+	}
+	popup->wlr_popup = wlr_popup;
+	popup->parent = parent;
+	popup->map.notify = popup_handle_map;
+	wl_signal_add(&wlr_popup->base->events.map, &popup->map);
+	popup->unmap.notify = popup_handle_unmap;
+	wl_signal_add(&wlr_popup->base->events.unmap, &popup->unmap);
+	popup->destroy.notify = popup_handle_destroy;
+	wl_signal_add(&wlr_popup->base->events.destroy, &popup->destroy);
+	popup->commit.notify = popup_handle_commit;
+	wl_signal_add(&wlr_popup->base->surface->events.commit, &popup->commit);
+	// TODO popups can have popups, see xdg_shell::popup_create
+
+	return popup;
+}
+
+static void handle_new_popup(struct wl_listener *listener, void *data) {
+	struct sway_layer_surface *sway_layer_surface =
+		wl_container_of(listener, sway_layer_surface, new_popup);
+	struct wlr_xdg_popup *wlr_popup = data;
+	popup_create(sway_layer_surface, wlr_popup);
+}
+
 struct sway_layer_surface *layer_from_wlr_layer_surface_v1(
 		struct wlr_layer_surface_v1 *layer_surface) {
 	return layer_surface->data;
@@ -405,6 +471,8 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&layer_surface->events.map, &sway_layer->map);
 	sway_layer->unmap.notify = handle_unmap;
 	wl_signal_add(&layer_surface->events.unmap, &sway_layer->unmap);
+	sway_layer->new_popup.notify = handle_new_popup;
+	wl_signal_add(&layer_surface->events.new_popup, &sway_layer->new_popup);
 	// TODO: Listen for subsurfaces
 
 	sway_layer->layer_surface = layer_surface;
