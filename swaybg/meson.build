@@ -6,9 +6,8 @@ executable(
 		cairo,
 		client_protos,
 		gdk_pixbuf,
-		jsonc,
-		pango,
-		pangocairo,
+		pango, # unused
+		pangocairo, # unused
 		wayland_client
 	],
 	link_with: [lib_sway_common, lib_sway_client],

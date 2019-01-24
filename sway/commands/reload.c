@@ -30,6 +30,7 @@ static void do_reload(void *data) {
 
 	ipc_event_workspace(NULL, NULL, "reload");
 
+	load_swaybg();
 	load_swaybars();
 
 	for (int i = 0; i < config->bars->length; ++i) {

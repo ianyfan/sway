@@ -209,5 +209,6 @@ bool server_start(struct sway_server *server) {
 void server_run(struct sway_server *server) {
 	sway_log(SWAY_INFO, "Running compositor on wayland display '%s'",
 			server->socket);
+	load_swaybg();
 	wl_display_run(server->wl_display);
 }

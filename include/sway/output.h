@@ -46,8 +46,6 @@ struct sway_output {
 
 	struct wl_list link;
 
-	pid_t bg_pid;
-
 	struct {
 		struct wl_signal destroy;
 	} events;

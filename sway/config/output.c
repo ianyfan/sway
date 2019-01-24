@@ -2,8 +2,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <string.h>
-#include <signal.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -165,16 +163,6 @@ static bool set_mode(struct wlr_output *output, int width, int height,
 	return wlr_output_set_mode(output, best);
 }
 
-void terminate_swaybg(pid_t pid) {
-	int ret = kill(pid, SIGTERM);
-	if (ret != 0) {
-		sway_log(SWAY_ERROR, "Unable to terminate swaybg [pid: %d]", pid);
-	} else {
-		int status;
-		waitpid(pid, &status, 0);
-	}
-}
-
 bool apply_output_config(struct output_config *oc, struct sway_output *output) {
 	if (output == root->noop_output) {
 		return false;
@@ -241,31 +229,6 @@ bool apply_output_config(struct output_config *oc, struct sway_output *output) {
 		wlr_output_layout_add(root->output_layout, wlr_output, oc->x, oc->y);
 	} else {
 		wlr_output_layout_add_auto(root->output_layout, wlr_output);
-	}
-
-	if (output->bg_pid != 0) {
-		terminate_swaybg(output->bg_pid);
-	}
-	if (oc && oc->background && config->swaybg_command) {
-		sway_log(SWAY_DEBUG, "Setting background for output %s to %s",
-			wlr_output->name, oc->background);
-
-		char *const cmd[] = {
-			config->swaybg_command,
-			wlr_output->name,
-			oc->background,
-			oc->background_option,
-			oc->background_fallback ? oc->background_fallback : NULL,
-			NULL,
-		};
-
-		output->bg_pid = fork();
-		if (output->bg_pid < 0) {
-			sway_log_errno(SWAY_ERROR, "fork failed");
-		} else if (output->bg_pid == 0) {
-			execvp(cmd[0], cmd);
-			sway_log_errno(SWAY_ERROR, "Failed to execute swaybg");
-		}
 	}
 
 	if (oc && oc->dpms_state == DPMS_OFF) {
